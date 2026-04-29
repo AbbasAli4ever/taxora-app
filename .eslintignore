@@ -1,0 +1,8 @@
+node_modules
+.expo
+dist
+build
+babel.config.js
+metro.config.js
+tailwind.config.js
+eslint.config.js
