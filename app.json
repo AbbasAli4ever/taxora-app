@@ -25,6 +25,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "APP_ENV": "development",
+      "API_BASE_URL": "https://api.example.com",
+      "REQUEST_TIMEOUT": "10000"
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
