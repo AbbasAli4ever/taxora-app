@@ -1,19 +1,19 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { ENV } from '@config/env';
 import { ApiResponse } from '@common/types';
 import { attachAuthInterceptor } from '@common/interceptors/auth.interceptor';
 import { attachErrorInterceptor } from '@common/interceptors/error.interceptor';
 
 class ApiService {
-  private readonly client: AxiosInstance;
+  readonly client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
-      baseURL: ENV.API_BASE_URL,
+      baseURL: ENV.API_BASE_URL, // e.g. http://localhost:3000/api/v1
       timeout: ENV.REQUEST_TIMEOUT,
       headers: {
         'Content-Type': 'application/json',
-        Accept:         'application/json',
+        Accept: 'application/json',
       },
     });
 
@@ -22,32 +22,32 @@ class ApiService {
   }
 
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const res: AxiosResponse<ApiResponse<T>> = await this.client.get(url, config);
+    const res = await this.client.get<ApiResponse<T>>(url, config);
     return res.data;
   }
 
   async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const res: AxiosResponse<ApiResponse<T>> = await this.client.post(url, data, config);
+    const res = await this.client.post<ApiResponse<T>>(url, data, config);
     return res.data;
   }
 
   async put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const res: AxiosResponse<ApiResponse<T>> = await this.client.put(url, data, config);
+    const res = await this.client.put<ApiResponse<T>>(url, data, config);
     return res.data;
   }
 
-  async patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const res: AxiosResponse<ApiResponse<T>> = await this.client.patch(url, data, config);
+  async patch<T>(
+    url: string,
+    data?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse<T>> {
+    const res = await this.client.patch<ApiResponse<T>>(url, data, config);
     return res.data;
   }
 
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const res: AxiosResponse<ApiResponse<T>> = await this.client.delete(url, config);
+    const res = await this.client.delete<ApiResponse<T>>(url, config);
     return res.data;
-  }
-
-  getAxiosInstance(): AxiosInstance {
-    return this.client;
   }
 }
 

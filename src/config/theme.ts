@@ -1,86 +1,85 @@
+// Design Brief §0 — exact palette
 export const COLORS = {
-  primary: {
-    50:  '#eff6ff',
-    100: '#dbeafe',
-    200: '#bfdbfe',
-    300: '#93c5fd',
-    400: '#60a5fa',
-    500: '#3b82f6',
-    600: '#2563eb',
-    700: '#1d4ed8',
-    800: '#1e40af',
-    900: '#1e3a8f',
+  // Accent / Primary — Indigo 600
+  accent: {
+    primary: { light: '#4F46E5', dark: '#6366F1' },
+    success: { light: '#16A34A', dark: '#22C55E' },
+    warning: { light: '#F59E0B', dark: '#FBBF24' },
+    danger: { light: '#DC2626', dark: '#EF4444' },
+    info: { light: '#0EA5E9', dark: '#38BDF8' },
   },
-  secondary: {
-    50:  '#f8fafc',
-    100: '#f1f5f9',
-    200: '#e2e8f0',
-    300: '#cbd5e1',
-    400: '#94a3b8',
-    500: '#64748b',
-    600: '#475569',
-    700: '#334155',
-    800: '#1e293b',
-    900: '#0f172a',
+
+  // Background
+  bg: {
+    primary: { light: '#FFFFFF', dark: '#0B0F17' },
+    elevated: { light: '#F8FAFC', dark: '#111827' },
   },
-  success:  { 500: '#22c55e', 600: '#16a34a' },
-  warning:  { 500: '#f59e0b', 600: '#d97706' },
-  error:    { 500: '#ef4444', 600: '#dc2626' },
-  white:    '#ffffff',
-  black:    '#000000',
+
+  // Text
+  text: {
+    primary: { light: '#0F172A', dark: '#F1F5F9' },
+    secondary: { light: '#64748B', dark: '#94A3B8' },
+  },
+
+  // Dividers
+  divider: { light: '#E5E7EB', dark: '#1F2937' },
+
+  // Raw palette kept for Tailwind config alignment
+  indigo: {
+    50: '#EEF2FF',
+    100: '#E0E7FF',
+    500: '#6366F1',
+    600: '#4F46E5',
+    700: '#4338CA',
+  },
+
+  white: '#FFFFFF',
+  black: '#000000',
   transparent: 'transparent',
 } as const;
 
 export const SPACING = {
-  xs:  4,
-  sm:  8,
-  md:  16,
-  lg:  24,
-  xl:  32,
-  '2xl': 48,
-  '3xl': 64,
+  1: 4,
+  2: 8,
+  3: 12,
+  4: 16,
+  5: 20,
+  6: 24,
+  8: 32,
+  12: 48,
 } as const;
 
 export const FONT_SIZE = {
-  xs:   12,
-  sm:   14,
-  base: 16,
-  lg:   18,
-  xl:   20,
-  '2xl': 24,
-  '3xl': 30,
-  '4xl': 36,
+  // Design Brief scale: H1 28, H2 22, H3 18, Body 15, Caption 13, Tiny 11
+  h1: 28,
+  h2: 22,
+  h3: 18,
+  body: 15,
+  caption: 13,
+  tiny: 11,
 } as const;
 
 export const BORDER_RADIUS = {
-  sm:   4,
-  md:   8,
-  lg:   12,
-  xl:   16,
-  '2xl': 24,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
   full: 9999,
 } as const;
 
 export const SHADOW = {
-  sm: {
+  card: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  md: {
+  sheet: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 15,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 8,
   },
 } as const;

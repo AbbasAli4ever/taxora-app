@@ -1,2 +1,2 @@
-export { homeController } from './home.controller';
-export { homeService }   from './home.service';
+// Home Module — implementation delivered per-screen with MOBILE_HOME_*.md files
+export { homeService } from './home.service';

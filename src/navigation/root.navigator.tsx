@@ -1,26 +1,34 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { AuthNavigator } from './auth.navigator';
-import { AppNavigator }  from './app.navigator';
-import { useAuthStore }  from '@modules/auth/store';
-import { Loader }        from '@common/components/ui/Loader';
 import { RootStackParamList } from '@common/types';
+import { AuthNavigator } from './auth.navigator';
+import { AppNavigator } from './app.navigator';
+import { CompanySelectScreen } from '@modules/auth/screens/CompanySelectScreen';
+import { useAuthStore } from '@modules/auth/store';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuthStore();
-
-  if (isLoading) {
-    return <Loader fullScreen message="Loading…" />;
-  }
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+        contentStyle: { backgroundColor: '#faf8ff' },
+      }}
+    >
       {isAuthenticated ? (
-        <Stack.Screen name="App"  component={AppNavigator} />
+        <>
+          <Stack.Screen name="App" component={AppNavigator} />
+          <Stack.Screen name="CompanySelect" component={CompanySelectScreen} />
+        </>
       ) : (
-        <Stack.Screen name="Auth" component={AuthNavigator} />
+        <>
+          <Stack.Screen name="Auth" component={AuthNavigator} />
+          <Stack.Screen name="CompanySelect" component={CompanySelectScreen} />
+        </>
       )}
     </Stack.Navigator>
   );

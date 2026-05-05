@@ -1,11 +1,10 @@
 import { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS } from '@common/constants';
+import { getToken } from '@common/utils/storage';
 
 export function attachAuthInterceptor(client: AxiosInstance): void {
   client.interceptors.request.use(
-    async (config: InternalAxiosRequestConfig) => {
-      const token = await AsyncStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    (config: InternalAxiosRequestConfig) => {
+      const token = getToken(); // synchronous MMKV read
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }

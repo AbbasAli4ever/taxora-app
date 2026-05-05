@@ -28,7 +28,7 @@
     },
     "extra": {
       "APP_ENV": "development",
-      "API_BASE_URL": "https://api.example.com",
+      "API_BASE_URL": "http://192.168.100.147:3000/api/v1",
       "REQUEST_TIMEOUT": "10000"
     },
     "plugins": [
