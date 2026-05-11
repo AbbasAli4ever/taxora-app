@@ -29,11 +29,16 @@ export const API_ENDPOINTS = {
   USERS: {
     ME: '/users/me',
     UPDATE: (id: string) => `/users/${id}`,
+    PROFILE: '/users/me',
+    UPDATE_PROFILE: '/users/me/profile',
+    AVATAR: '/users/me/avatar',
+    PREFERENCES: '/users/me/preferences',
   },
   DASHBOARD: {
     FINANCIAL_OVERVIEW: '/dashboard/financial-overview',
     RECENT_ACTIVITY: '/dashboard/recent-activity',
     CASH_FLOW_OVERVIEW: '/dashboard/cash-flow-overview',
+    REVENUE_EXPENSE_TREND: '/dashboard/revenue-expense-trend',
     INVOICE_ANALYTICS: '/dashboard/invoice-analytics',
     TOP_CUSTOMERS: '/dashboard/top-customers',
   },
@@ -44,9 +49,11 @@ export const API_ENDPOINTS = {
     SUMMARY: '/invoices/summary',
     STATUSES: '/invoices/statuses',
     SEND: (id: string) => `/invoices/${id}/send`,
+    VOID: (id: string) => `/invoices/${id}/void`,
     PAYMENTS: (id: string) => `/invoices/${id}/payments`,
     PDF: (id: string) => `/invoices/${id}/pdf`,
   },
+  AUDIT_TRAIL: '/audit-trail',
   ESTIMATES: {
     LIST: '/estimates',
     DETAIL: (id: string) => `/estimates/${id}`,
@@ -125,5 +132,10 @@ export const API_ENDPOINTS = {
   },
   ACCOUNTS: '/accounts',
   CATEGORIES: '/categories',
-  TAXES: '/taxes',
+  TAXES: {
+    LIST: '/taxes',
+    RATES: '/taxes/rates',
+  },
+  CLASSES: '/classes',
+  DEPARTMENTS: '/departments',
 } as const;

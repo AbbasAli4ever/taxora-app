@@ -261,17 +261,13 @@ function useFinancialOverview(period: Period) {
   });
 }
 
-function useCashFlow(period: Period) {
+function useCashFlow() {
+  // MD §5.2: no query params — always returns last 30 days; period toggle is client-side only
   return useQuery<CashFlowData>({
-    queryKey: ['dashboard', 'cash-flow-overview', period],
+    queryKey: ['dashboard', 'cash-flow-overview'],
     queryFn: async () => {
-      const res = await apiService.get(
-        `${API_ENDPOINTS.DASHBOARD.CASH_FLOW_OVERVIEW}?period=${period}`,
-      );
-      const d = res.data as any;
-      // Normalise: backend may return dailyFlow or series
-      if (d && !d.dailyFlow && d.series) d.dailyFlow = d.series;
-      return d ?? EMPTY_CASH_FLOW;
+      const res = await apiService.get(API_ENDPOINTS.DASHBOARD.CASH_FLOW_OVERVIEW);
+      return (res.data as any) ?? EMPTY_CASH_FLOW;
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -282,9 +278,11 @@ function useCashFlow(period: Period) {
 
 function useRevExpTrend(period: Period) {
   return useQuery<RevExpTrend>({
-    queryKey: ['dashboard', 'revenue-expense-trend', period],
+    queryKey: ['dashboard', 'revenue-expense-trend', { period }],
     queryFn: async () => {
-      const res = await apiService.get(`/dashboard/revenue-expense-trend?period=${period}`);
+      const res = await apiService.get(
+        `${API_ENDPOINTS.DASHBOARD.REVENUE_EXPENSE_TREND}?period=${period}`,
+      );
       return (res.data as any) ?? { granularity: 'daily' as const, data: [] };
     },
     staleTime: 60_000,
@@ -297,12 +295,12 @@ function useRevExpTrend(period: Period) {
 function useArAging() {
   const today = new Date().toISOString().slice(0, 10);
   return useQuery<AgingTotals>({
-    queryKey: ['reports', 'ar-aging'],
+    queryKey: ['reports', 'ar-aging', { asOfDate: today }],
     queryFn: async () => {
       const res = await apiService.get(`${API_ENDPOINTS.REPORTS.AR_AGING}?asOfDate=${today}`);
       return (res.data as any)?.totals ?? EMPTY_AGING;
     },
-    staleTime: 300_000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
     refetchInterval: false,
     placeholderData: () => EMPTY_AGING,
@@ -312,12 +310,12 @@ function useArAging() {
 function useApAging() {
   const today = new Date().toISOString().slice(0, 10);
   return useQuery<AgingTotals>({
-    queryKey: ['reports', 'ap-aging'],
+    queryKey: ['reports', 'ap-aging', { asOfDate: today }],
     queryFn: async () => {
       const res = await apiService.get(`${API_ENDPOINTS.REPORTS.AP_AGING}?asOfDate=${today}`);
       return (res.data as any)?.totals ?? EMPTY_AGING;
     },
-    staleTime: 300_000,
+    staleTime: 60_000,
     refetchOnWindowFocus: false,
     refetchInterval: false,
     placeholderData: () => EMPTY_AGING,
@@ -325,10 +323,11 @@ function useApAging() {
 }
 
 function useRecentActivity() {
+  // MD §5.5: always pass limit=5 explicitly (default is 10)
   return useQuery<ActivityItem[]>({
-    queryKey: ['dashboard', 'recent-activity'],
+    queryKey: ['dashboard', 'recent-activity', { limit: 10 }],
     queryFn: async () => {
-      const res = await apiService.get(`${API_ENDPOINTS.DASHBOARD.RECENT_ACTIVITY}?limit=20`);
+      const res = await apiService.get(`${API_ENDPOINTS.DASHBOARD.RECENT_ACTIVITY}?limit=10`);
       const d = res.data as any;
       return Array.isArray(d?.activities) ? d.activities : [];
     },
@@ -814,11 +813,11 @@ export function HomeScreen() {
   const queryClient = useQueryClient();
 
   const [period, setPeriod] = useState<Period>('this_month');
+  const [chartPeriod, setChartPeriod] = useState<'7D' | '30D'>('30D');
   const [refreshing, setRefreshing] = useState(false);
 
-  // All queries use the same period
   const { data: kpi, isLoading: kpiLoading } = useFinancialOverview(period);
-  const { data: cashFlow, isLoading: chartLoading } = useCashFlow(period);
+  const { data: cashFlow, isLoading: chartLoading } = useCashFlow();
   const { data: revExp } = useRevExpTrend(period);
   const { data: arAging } = useArAging();
   const { data: apAging } = useApAging();
@@ -830,17 +829,18 @@ export function HomeScreen() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       queryClient.invalidateQueries({ queryKey: ['reports'] }),
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] }),
+      queryClient.invalidateQueries({ queryKey: ['notifications'] }),
     ]);
     setRefreshing(false);
   }, [queryClient]);
 
-  // Chart: use dailyFlow, compute net = inflow - outflow client-side
+  // Chart: client-side period slice (7D or 30D) per MD §5.2
   const chartData = React.useMemo(() => {
     const flows = cashFlow?.dailyFlow;
     if (!Array.isArray(flows) || flows.length === 0) return [];
-    return flows.map((p) => ({ value: (p.inflow ?? 0) - (p.outflow ?? 0) }));
-  }, [cashFlow]);
+    const sliced = chartPeriod === '7D' ? flows.slice(-7) : flows.slice(-30);
+    return sliced.map((p) => ({ value: (p.inflow ?? 0) - (p.outflow ?? 0) }));
+  }, [cashFlow, chartPeriod]);
 
   // Sparklines
   const cashSparkBars = React.useMemo(() => {
@@ -859,23 +859,25 @@ export function HomeScreen() {
     return last5.map((v) => Math.abs(v) / max);
   }, [revExp]);
 
-  // X-axis labels
+  // X-axis labels — derived from same slice as chartData
   const chartLabels = React.useMemo(() => {
     const flows = cashFlow?.dailyFlow;
     if (!Array.isArray(flows) || flows.length === 0) return ['', '', '', ''];
+    const sliced = chartPeriod === '7D' ? flows.slice(-7) : flows.slice(-30);
+    if (sliced.length === 0) return ['', '', '', ''];
     const picks = [
       0,
-      Math.floor(flows.length / 3),
-      Math.floor((flows.length * 2) / 3),
-      flows.length - 1,
+      Math.floor(sliced.length / 3),
+      Math.floor((sliced.length * 2) / 3),
+      sliced.length - 1,
     ];
     return picks.map((i) => {
-      const d = new Date(flows[i]?.date ?? '');
+      const d = new Date(sliced[i]?.date ?? '');
       return isNaN(d.getTime())
         ? ''
         : `${d.getDate()} ${d.toLocaleString('en-US', { month: 'short' })}`;
     });
-  }, [cashFlow]);
+  }, [cashFlow, chartPeriod]);
 
   const chartWidth = SCREEN_W - 64;
 
@@ -1020,16 +1022,7 @@ export function HomeScreen() {
                 sparkBars={cashSparkBars}
               />
               <KPICard
-                label="Revenue"
-                value={kpi.revenue.current}
-                deltaPct={kpi.revenue.changePercent}
-                deltaDir={kpi.revenue.changeDirection}
-                icon="trending-up"
-                iconColor="#0040a2"
-                iconBg="#dae2ff"
-              />
-              <KPICard
-                label="Net Income"
+                label="Net Income MTD"
                 value={kpi.netIncome.current}
                 deltaPct={kpi.netIncome.changePercent}
                 deltaDir={kpi.netIncome.changeDirection}
@@ -1079,17 +1072,46 @@ export function HomeScreen() {
               elevation: 2,
             }}
           >
-            <Text
+            <View
               style={{
-                fontSize: 18,
-                fontWeight: '600',
-                color: ON_SURFACE,
-                letterSpacing: -0.3,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
                 marginBottom: 16,
               }}
             >
-              Cash Flow
-            </Text>
+              <Text
+                style={{ fontSize: 18, fontWeight: '600', color: ON_SURFACE, letterSpacing: -0.3 }}
+              >
+                Cash Flow
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {(['7D', '30D'] as const).map((p) => (
+                  <TouchableOpacity
+                    key={p}
+                    onPress={() => setChartPeriod(p)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 20,
+                      backgroundColor: chartPeriod === p ? PRIMARY : PRIMARY + '12',
+                      borderWidth: 1,
+                      borderColor: chartPeriod === p ? PRIMARY : PRIMARY + '30',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: chartPeriod === p ? '#fff' : PRIMARY,
+                      }}
+                    >
+                      {p}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
             {chartLoading ? (
               <View style={{ height: 160, alignItems: 'center', justifyContent: 'center' }}>

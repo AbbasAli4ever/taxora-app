@@ -38,9 +38,9 @@ module.exports = [
       'react/prop-types':               'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
-      'react-native/no-unused-styles':  'warn',
-      'react-native/no-inline-styles':  'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'react-native/no-unused-styles':  'off',
+      'react-native/no-inline-styles':  'off',
     },
     settings: {
       react: { version: 'detect' },

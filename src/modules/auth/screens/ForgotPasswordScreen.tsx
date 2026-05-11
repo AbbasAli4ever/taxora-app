@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,8 +36,22 @@ const BORDER = '#dbe5ff';
 const DANGER = '#ba1a1a';
 
 function SuccessView({ email, onBack }: { email: string; onBack: () => void }) {
-  const openMailApp = () => {
-    Linking.openURL(Platform.OS === 'ios' ? 'message://' : 'mailto:').catch(() => {});
+  const [openMailError, setOpenMailError] = useState(false);
+
+  const openMailApp = async () => {
+    const url = Platform.OS === 'ios' ? 'message://' : 'mailto:';
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        Linking.openURL(url);
+      } else {
+        setOpenMailError(true);
+        setTimeout(() => setOpenMailError(false), 3000);
+      }
+    } catch {
+      setOpenMailError(true);
+      setTimeout(() => setOpenMailError(false), 3000);
+    }
   };
 
   return (
@@ -92,10 +106,29 @@ function SuccessView({ email, onBack }: { email: string; onBack: () => void }) {
         <Text style={{ fontSize: 24, fontWeight: '800', color: TEXT, marginBottom: 8 }}>
           Check your email
         </Text>
-        <Text style={{ fontSize: 16, color: BODY, lineHeight: 24, marginBottom: 32 }}>
-          We sent a password reset link to{' '}
+        <Text style={{ fontSize: 16, color: BODY, lineHeight: 24, marginBottom: 8 }}>
+          {"If an account exists with this email, we've sent a reset link to "}
           <Text style={{ color: PRIMARY_DARK, fontWeight: '700' }}>{email}</Text>
+          {'. The link expires in 1 hour.'}
         </Text>
+
+        {openMailError && (
+          <View
+            style={{
+              backgroundColor: '#fff7ed',
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              marginBottom: 12,
+              borderWidth: 1,
+              borderColor: '#fed7aa',
+            }}
+          >
+            <Text style={{ fontSize: 13, color: '#92400e', textAlign: 'center' }}>
+              No email app found on this device.
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity
           onPress={openMailApp}

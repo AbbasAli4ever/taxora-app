@@ -3,12 +3,23 @@ import { useAuthStore } from './store';
 import { LoginDto } from './dto/login.dto';
 import { getApiErrorMessage } from '@common/utils/apiError';
 import { getRefreshToken, saveTokens, clearTokens } from '@common/utils/storage';
-import { LoginResponseDirect, LoginResponseMFA } from '@common/types';
+import { LoginResponseDirect } from '@common/types';
+
+export type CompanyItem = {
+  companyId: string;
+  companyName: string;
+  userId?: string;
+  role?: { code: string; name: string } | null;
+  isPrimaryAdmin?: boolean;
+  lastLoginAt?: string | null;
+  isActive?: boolean;
+  isCurrentCompany?: boolean;
+};
 
 export type LoginResult =
   | { type: 'success' }
-  | { type: 'mfa'; tempToken: string; method: 'totp' | 'email' }
-  | { type: 'company'; tempToken: string; companies: { id: string; name: string }[] }
+  | { type: 'mfa'; tempToken: string }
+  | { type: 'company'; tempToken: string; companies: CompanyItem[] }
   | { type: 'error'; message: string };
 
 export const authController = {
@@ -18,30 +29,22 @@ export const authController = {
 
       // Shape B — MFA required
       if ('requires2fa' in response) {
-        const r = response as LoginResponseMFA;
-        return { type: 'mfa', tempToken: r.tempToken, method: r.method };
+        return { type: 'mfa', tempToken: response.tempToken };
       }
 
       // Shape C — multi-company selection
       if ('requiresCompanySelection' in response) {
-        const r = response as any;
         return {
           type: 'company',
-          tempToken: r.tempToken,
-          companies: (r.companies ?? []).map((c: any) => ({
-            id: c.id ?? c.companyId,
-            name: c.name ?? c.companyName,
-          })),
+          tempToken: response.tempToken,
+          companies: response.companies as CompanyItem[],
         };
       }
 
       // Shape A — direct success
       const r = response as LoginResponseDirect;
       saveTokens(r.accessToken, r.refreshToken);
-
-      // Fetch permissions in parallel with setAuth
-      const permissions = await authService.getMyPermissions();
-      useAuthStore.getState().setAuth(r.user, r.company, permissions);
+      useAuthStore.getState().setAuth(r.user, r.company, (r as any).permissions ?? []);
 
       return { type: 'success' };
     } catch (err) {
@@ -56,8 +59,7 @@ export const authController = {
     try {
       const r = await authService.selectCompany(companyId, tempToken);
       saveTokens(r.accessToken, r.refreshToken);
-      const permissions = await authService.getMyPermissions();
-      useAuthStore.getState().setAuth(r.user, r.company, permissions);
+      useAuthStore.getState().setAuth(r.user, r.company, (r as any).permissions ?? []);
       return { success: true };
     } catch (err) {
       return { success: false, error: getApiErrorMessage(err) };
@@ -78,52 +80,51 @@ export const authController = {
   async verifyMFA(
     tempToken: string,
     code: string,
+    isBackupCode?: boolean,
   ): Promise<
     | { type: 'success' }
-    | { type: 'company'; tempToken: string; companies: { id: string; name: string }[] }
+    | { type: 'company'; tempToken: string; companies: CompanyItem[] }
     | { type: 'error'; message: string }
   > {
     try {
-      const response = await authService.verifyMFA(tempToken, code);
+      const response = await authService.verifyMFA(tempToken, code, isBackupCode);
 
       if ('requiresCompanySelection' in response) {
-        const r = response as any;
         return {
           type: 'company',
-          tempToken: r.tempToken,
-          companies: (r.companies ?? []).map((c: any) => ({
-            id: c.id ?? c.companyId,
-            name: c.name ?? c.companyName,
-          })),
+          tempToken: response.tempToken,
+          companies: response.companies as CompanyItem[],
         };
       }
 
       const r = response as LoginResponseDirect;
       saveTokens(r.accessToken, r.refreshToken);
-      const permissions = await authService.getMyPermissions();
-      useAuthStore.getState().setAuth(r.user, r.company, permissions);
+      useAuthStore.getState().setAuth(r.user, r.company, (r as any).permissions ?? []);
       return { type: 'success' };
     } catch (err) {
       return { type: 'error', message: getApiErrorMessage(err) };
     }
   },
 
-  // §4.5 — called on Splash screen in parallel
-  async bootSession(): Promise<boolean> {
+  async bootSession(): Promise<'success' | 'needs-company' | 'fail'> {
     try {
-      const [user, permissions] = await Promise.all([
+      const [meData, permissions] = await Promise.all([
         authService.getMe(),
         authService.getMyPermissions(),
       ]);
-      const { company } = useAuthStore.getState();
-      if (company) {
-        useAuthStore.getState().setAuth(user, company, permissions);
+
+      const company = (meData as any).company ?? null;
+      if (!company) {
+        useAuthStore.getState().setAuth(meData, { id: '', name: '' }, permissions);
+        return 'needs-company';
       }
-      return true;
+
+      useAuthStore.getState().setAuth(meData, company, permissions);
+      return 'success';
     } catch {
       clearTokens();
       useAuthStore.getState().clearAuth();
-      return false;
+      return 'fail';
     }
   },
 };

@@ -8,11 +8,13 @@
 
 ## 1. Screen Purpose
 
-Request a password-reset email. Always returns a generic success response (server does not leak whether the email exists).
+Request a password-reset email. Always shows a generic success UI regardless of whether the email exists (server intentionally does not leak this).
 
 ## 2. Wireframe Description
 
-Back arrow top-left. H1 "Reset password". Subtitle "Enter your email and we'll send a reset link". Email input. Full-width Primary "Send Reset Link". On success, the screen swaps body to a centered checkmark illustration + headline "Check your email" + body copy + secondary button "Open Mail App" + tertiary "Back to Sign In".
+Back arrow top-left. H1 "Reset password". Subtitle "Enter your email and we'll send a reset link". Email input. Full-width Primary "Send Reset Link".
+
+On success, the screen swaps body to a centered checkmark illustration + headline "Check your email" + body copy ("If an account exists with this email, we've sent a reset link.") + secondary button "Open Mail App" + tertiary "Back to Sign In".
 
 ## 3. Component Breakdown
 
@@ -31,36 +33,45 @@ State owned: `email`, `submitting`, `submitted`.
 - **Entry:** from Login → "Forgot password?" link.
 - **Exit:**
   - Back → Login.
-  - "Open Mail App" → external Mail.
-  - After success state, no auto-route; user goes back manually.
-- **Params:** optional `{ prefilledEmail?: string }` (passes the value the user typed on Login).
+  - "Open Mail App" → external Mail app.
+  - "Back to Sign In" → Login.
+  - After success state, no auto-route; user navigates manually.
+- **Params:** optional `{ prefilledEmail?: string }` (passes the email the user typed on Login).
 
 ## 5. Backend Integration
 
 ### 5.1 Submit reset request
 **Endpoint:** `POST /api/v1/auth/forgot-password`
+**Rate limit:** 5 attempts per 60 seconds.
 **Body:**
 ```ts
 { email: string }
 ```
-**Response 200:**
+**Response 200 (always — regardless of whether email exists):**
 ```ts
 {
-  statusCode: 200,
-  message: 'If the email exists, a reset link has been sent',
-  data: { sent: true }
+  status: 'success',
+  message: 'If an account exists with this email, you will receive a password reset link',
+  data: {
+    message: 'If an account exists with this email, you will receive a password reset link',
+    emailSent: boolean    // true if account found and email sent; false if not found
+  }
 }
 ```
-**Errors:**
-- `429` Too many requests → toast "Try again in a minute".
-- `400` invalid email format → inline field error.
+> **Important:** The response is identical in structure whether or not the email exists. The `emailSent` boolean indicates internally whether an email was sent, but the **UI must NOT differentiate** — always show the same success card regardless of `emailSent`. This prevents email enumeration attacks.
 
-> The endpoint is intentionally non-revealing — same response whether the email exists or not. The UI must NOT imply success means an account exists.
+**Errors:**
+- `429` (throttle) → toast "Too many requests. Try again in a minute."
+- `400` invalid email format (caught client-side by Zod before submit).
+
+### 5.2 Password reset token expiry
+The reset link sent by email contains a token that expires after **1 hour**. The success card body copy should include: "The link expires in 1 hour."
 
 ## 6. State & Data Flow
 
 - No cache. One-shot mutation.
-- React Hook Form + Zod (`email: z.string().email()`).
+- React Hook Form + Zod: `email: z.string().email()`.
+- Always show success card on 200 — do not inspect `emailSent`.
 
 ## 7. Offline Behavior
 
@@ -74,12 +85,13 @@ None.
 
 - Trim email before submit.
 - Disable button while submitting; success state remains until user navigates away.
-- Universal Links / Email deep link: tapping the reset link in email should open the app to `ResetPassword` with the token in params (if app installed) or the web fallback URL.
+- **Universal Links / deep link:** tapping the reset link in email opens the app to `ResetPassword` with `?token=<token>` in params (if app installed), or opens web fallback URL.
+- **Open Mail App check:** use `Linking.canOpenURL` before attempting — if no mail app installed, show toast "No email app found on this device."
 
 ## 10. Acceptance Criteria
 
-- [ ] Valid email → success card displays, primary button shows loading then resolves.
-- [ ] Invalid email format → inline error, no API call.
+- [ ] Valid email → success card displays with consistent message regardless of whether account exists.
+- [ ] Invalid email format → inline error shown, no API call made.
 - [ ] 429 → friendly cooldown toast.
-- [ ] Open Mail App opens on iOS and Android.
+- [ ] Open Mail App button works on iOS and Android; shows toast if no mail app installed.
 - [ ] Light + dark mockups implemented.

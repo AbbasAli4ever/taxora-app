@@ -38,46 +38,89 @@ State owned: `bootstrapStatus: 'loading' | 'ready' | 'error'`.
 ## 5. Backend Integration
 
 ### 5.1 Read token (no API call)
-Read JWT + refreshToken from secure storage via `react-native-keychain`. Store in memory on the API client.
+Read `accessToken` + `refreshToken` from secure storage via `react-native-keychain`. Store in memory on the API client.
 
 ### 5.2 Validate token / load user
 **Endpoint:** `GET /api/v1/auth/me`
-**Headers:** `Authorization: Bearer <jwt>`
+**Headers:** `Authorization: Bearer <accessToken>`
 **Response 200:**
 ```ts
 {
-  statusCode: 200,
+  status: 'success',
   message: 'User retrieved successfully',
   data: {
     id: string,
     email: string,
-    firstName: string,
-    lastName: string,
-    companyId: string,
-    company: { id: string, name: string, baseCurrency: string },
+    firstName: string | null,
+    lastName: string | null,
     isPrimaryAdmin: boolean,
-    roleId: string | null,
-    twoFactorEnabled: boolean
+    role: { code: string, name: string } | null,
+    company: { id: string, name: string },
+    permissions: string[]
   }
 }
 ```
-**Errors:** `401` → token invalid/expired (try refresh, else go to Login).
+> **Note:** `/auth/me` does NOT return `companyId`, `roleId`, or `twoFactorEnabled` as direct fields. Use `company.id` for company ID. For full profile data (phone, avatarUrl, preferences) use `GET /users/me` — that is a separate endpoint.
+
+**Errors:** `401` → token invalid/expired → attempt refresh (§5.3).
 
 ### 5.3 Refresh on 401
 **Endpoint:** `POST /api/v1/auth/refresh`
 **Body:** `{ refreshToken: string }`
-**Response 200:** `{ data: { accessToken, refreshToken, expiresIn } }`
-On success: persist new tokens, retry `GET /auth/me`.
-On failure: clear keychain, route to Login.
+**Response 200:**
+```ts
+{
+  status: 'success',
+  message: 'Tokens refreshed successfully',
+  data: {
+    accessToken: string,
+    refreshToken: string
+    // Note: no expiresIn field returned
+  }
+}
+```
+- On success: persist new tokens to keychain, update API client header, retry `GET /auth/me`.
+- On failure (`401`): clear keychain, route to Login.
+- Refresh tokens expire after **7 days**.
 
 ### 5.4 Load permissions (parallel with /me)
 **Endpoint:** `GET /api/v1/auth/my-permissions`
-**Response 200:** `{ data: { permissions: string[], isPrimaryAdmin: boolean, role: { id, name } | null } }`
-Persist in in-memory store (Zustand) for permission gating across the app.
+**Response 200:**
+```ts
+{
+  status: 'success',
+  message: 'Permissions retrieved successfully',
+  data: {
+    permissions: string[],      // all permission codes for the user
+    isPrimaryAdmin: boolean,
+    role: { id: string, code: string, name: string } | null
+  }
+}
+```
+Persist `permissions` array in Zustand (`useSession`) for permission gating across the app.
 
-### 5.5 Load companies (only if user has multi-company hint)
+> **Optimization:** `/auth/me` already returns `permissions` in its response. Run `/auth/me` and `/auth/my-permissions` in parallel — use whichever resolves first to hydrate permissions, then confirm with the other.
+
+### 5.5 Load companies (only if no active company persisted)
 **Endpoint:** `GET /api/v1/auth/my-companies`
-**Response 200:** `{ data: Array<{ id, name, role, isActive }> }`
+**Response 200:**
+```ts
+{
+  status: 'success',
+  message: 'Companies retrieved successfully',
+  data: Array<{
+    companyId: string,
+    companyName: string,
+    userId: string,
+    role: { code: string, name: string } | null,
+    isPrimaryAdmin: boolean,
+    lastLoginAt: string | null,
+    isCurrentCompany: boolean,
+    isActive: boolean
+  }>
+}
+```
+> Field names are `companyId` / `companyName` (not `id` / `name`) in this response. Map accordingly when passing to `CompanySelect`.
 
 ## 6. State & Data Flow
 
@@ -96,10 +139,11 @@ None target this screen directly. If the app was killed and reopened via push, t
 
 ## 9. Edge Cases & Validation
 
-- Token present but `companyId` missing on user → route to `CompanySelect`.
-- Refresh succeeds but `me` still 401 → clear all auth state, Login.
-- Permissions fetch fails but `me` succeeds → continue with empty permissions array (UI will hide gated actions).
+- Token present but `company` missing on `/auth/me` response → route to `CompanySelect`.
+- Refresh succeeds but `me` still 401 → clear all auth state, route to Login.
+- Permissions fetch fails but `me` succeeds → continue with the `permissions` array from `/auth/me` response as fallback.
 - Animation must respect `prefers-reduced-motion` — hold static logo without parallax.
+- Refresh token expiry is 7 days — if expired, user must log in again.
 
 ## 10. Acceptance Criteria
 

@@ -123,14 +123,19 @@ function FloatingInput({
             placeholder={placeholder || ''}
             placeholderTextColor="#a7afc2"
             selectionColor={PRIMARY}
-            style={{
-              fontSize: 16,
-              color: TEXT,
-              height: 32,
-              padding: 0,
-              fontWeight: '600',
-              letterSpacing: 0,
-            }}
+            underlineColorAndroid="transparent"
+            style={
+              {
+                fontSize: 16,
+                color: TEXT,
+                height: 32,
+                padding: 0,
+                fontWeight: '600',
+                letterSpacing: 0,
+                backgroundColor: 'transparent',
+                outlineStyle: 'none',
+              } as any
+            }
           />
         </View>
         {showToggle && (
@@ -186,14 +191,12 @@ export function LoginScreen() {
     if (result.type === 'mfa') {
       navigation.navigate('MFAChallenge', {
         tempToken: result.tempToken,
-        method: result.method,
-        email: data.email.trim(),
-        password: data.password,
       });
       return;
     }
     if (result.type === 'company') {
       navigation.navigate('CompanySelect', {
+        mode: 'post-login',
         tempToken: result.tempToken,
         companies: result.companies,
       });

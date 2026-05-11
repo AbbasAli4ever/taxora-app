@@ -30,8 +30,10 @@ const schema = z
     newPassword: z
       .string()
       .min(8, 'At least 8 characters')
-      .regex(/\d/, 'Must have a number')
-      .regex(/[^a-zA-Z0-9]/, 'Must have a symbol'),
+      .regex(/[A-Z]/, 'Must contain an uppercase letter')
+      .regex(/[a-z]/, 'Must contain a lowercase letter')
+      .regex(/[0-9]/, 'Must contain a number')
+      .regex(/[@$!%*?&]/, 'Must contain a special character (@$!%*?&)'),
     confirmPassword: z.string().min(1, 'Please confirm'),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
@@ -54,10 +56,11 @@ const DANGER = '#ba1a1a';
 function getStrengthScore(password: string): number {
   let score = 0;
   if (password.length >= 8) score++;
-  if (/\d/.test(password)) score++;
-  if (/[^a-zA-Z0-9]/.test(password)) score++;
-  if (password.length >= 12) score++;
-  return score;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[@$!%*?&]/.test(password)) score++;
+  return Math.min(4, Math.ceil(score / 1.25));
 }
 
 const STRENGTH_LABEL = ['', 'WEAK', 'MEDIUM', 'STRONG', 'STRONG'];
@@ -71,6 +74,7 @@ export function ResetPasswordScreen() {
   const token = route.params?.token;
 
   const [tokenState, setTokenState] = useState<TokenState>(() => (token ? 'loading' : 'invalid'));
+  const [maskedEmail, setMaskedEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -92,8 +96,10 @@ export function ResetPasswordScreen() {
 
   const rules = [
     { text: '8+ characters', satisfied: newPassword.length >= 8 },
-    { text: 'At least 1 number', satisfied: /\d/.test(newPassword) },
-    { text: 'At least 1 symbol (@, #, $)', satisfied: /[^a-zA-Z0-9]/.test(newPassword) },
+    { text: 'One uppercase letter (A–Z)', satisfied: /[A-Z]/.test(newPassword) },
+    { text: 'One lowercase letter (a–z)', satisfied: /[a-z]/.test(newPassword) },
+    { text: 'One number (0–9)', satisfied: /[0-9]/.test(newPassword) },
+    { text: 'One special character (@$!%*?&)', satisfied: /[@$!%*?&]/.test(newPassword) },
   ];
   const allRulesMet =
     rules.every((r) => r.satisfied) && !!newPassword && newPassword === confirmPassword;
@@ -104,7 +110,14 @@ export function ResetPasswordScreen() {
     }
     authService
       .validateResetToken(token)
-      .then((valid) => setTokenState(valid ? 'valid' : 'invalid'))
+      .then((result) => {
+        if (result.valid) {
+          if (result.email) setMaskedEmail(result.email);
+          setTokenState('valid');
+        } else {
+          setTokenState('invalid');
+        }
+      })
       .catch(() => setTokenState('invalid'));
   }, [token]);
 
@@ -289,10 +302,17 @@ export function ResetPasswordScreen() {
           <Text style={{ fontSize: 26, fontWeight: '800', color: TEXT, marginBottom: 8 }}>
             Create new password
           </Text>
-          <Text style={{ fontSize: 15, color: BODY, lineHeight: 22 }}>
-            Your new password must be unique from those used previously to protect your FinanX
-            account.
-          </Text>
+          {maskedEmail ? (
+            <Text style={{ fontSize: 15, color: BODY, lineHeight: 22 }}>
+              {'Resetting password for '}
+              <Text style={{ color: PRIMARY_DARK, fontWeight: '700' }}>{maskedEmail}</Text>
+            </Text>
+          ) : (
+            <Text style={{ fontSize: 15, color: BODY, lineHeight: 22 }}>
+              Your new password must be unique from those used previously to protect your FinanX
+              account.
+            </Text>
+          )}
         </View>
 
         <LinearGradient

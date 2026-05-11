@@ -107,7 +107,7 @@ All responses are wrapped in:
 
 ### 5.2 Cash flow trend (chart)
 **Endpoint:** `GET /api/v1/dashboard/cash-flow-overview`
-**Query params:** same `period`, `startDate`, `endDate` as §5.1.
+**Query params:** none — this endpoint accepts no query parameters. It always returns the last 30 days of daily flow regardless of the period toggle. The period toggle on the chart is client-side only (slice `dailyFlow` array to 7/30 days).
 
 **Response 200:**
 ```ts
@@ -221,8 +221,9 @@ All responses are wrapped in:
 
 | Param | Type | Required | Notes |
 |-------|------|----------|-------|
-| `limit` | number (1–50) | No | Defaults to 5 |
-| `period` | string | No | Same presets as §5.1 |
+| `limit` | number (1–50) | No | Defaults to **10** — pass `limit=5` explicitly for the dashboard |
+
+> There is **no `period` param** on this endpoint. It always returns the most recent N activities across all time, sorted by `occurredAt` descending.
 
 **Response 200:**
 ```ts
@@ -231,8 +232,8 @@ All responses are wrapped in:
     activities: Array<{
       id: string,
       type: 'INVOICE' | 'BILL' | 'EXPENSE' | 'JOURNAL_ENTRY' | 'PAYMENT',
-      label: string,        // e.g. "Invoice INV-0042"
-      description: string,  // e.g. "Sent to Acme Co"
+      label: string,        // e.g. "INV-0042" / "BILL-0010" / "EXP-0005"
+      description: string,  // e.g. "Invoice to Acme Co" / "Bill from Supplier X" / "Payment from Acme Co"
       status: string,
       amount: number,
       occurredAt: string    // ISO datetime
@@ -240,7 +241,17 @@ All responses are wrapped in:
   }
 }
 ```
-> The response is nested under `activities` (not a root array). Fields `entityId`, `actorName`, `currencyCode`, and `iconHint` are **not** returned — derive the row icon from `type`, and omit actor attribution in v1. Deep-link targets must be resolved by `type` + `id`.
+
+**Per-type field values:**
+| type | label | description | amount |
+|------|-------|-------------|--------|
+| `INVOICE` | invoiceNumber | "Invoice to {customerName}" | totalAmount |
+| `BILL` | billNumber | "Bill from {vendorName}" | totalAmount |
+| `EXPENSE` | expenseNumber | "Expense — {categoryName}" or "Expense" | totalAmount |
+| `JOURNAL_ENTRY` | entryNumber | description or "Journal Entry" | totalDebit |
+| `PAYMENT` | invoice.invoiceNumber | "Payment from {customerName}" | paymentAmount |
+
+> `entityId`, `actorName`, `currencyCode`, and `iconHint` are **not** returned — derive the row icon from `type`. Deep-link navigation must be resolved by `type` + `id`.
 
 ### 5.6 Notifications unread count (for bell badge)
 **Endpoint:** `GET /api/v1/notifications/unread-count`
@@ -259,7 +270,7 @@ All responses are wrapped in:
 - `['dashboard','cash-flow-overview', { period }]`
 - `['reports','ar-aging', { asOfDate }]`
 - `['reports','ap-aging', { asOfDate }]`
-- `['dashboard','recent-activity', { limit: 5 }]`
+- `['dashboard','recent-activity', { limit: 5 }]`  // always pass limit=5 explicitly (default is 10)
 - `['notifications','unread-count']`
 
 **Settings:** `staleTime: 60s`, `refetchOnWindowFocus: true`, `refetchOnReconnect: true`.

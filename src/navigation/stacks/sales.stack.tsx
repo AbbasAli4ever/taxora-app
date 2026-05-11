@@ -6,6 +6,7 @@ import { InvoiceDetailScreen } from '@modules/sales/screens/InvoiceDetailScreen'
 import { InvoiceFormScreen } from '@modules/sales/screens/InvoiceFormScreen';
 import { InvoiceSendScreen } from '@modules/sales/screens/InvoiceSendScreen';
 import { InvoicePaymentScreen } from '@modules/sales/screens/InvoicePaymentScreen';
+import { InvoiceFilterScreen } from '@modules/sales/screens/InvoiceFilterScreen';
 import { EstimateListScreen } from '@modules/sales/screens/EstimateListScreen';
 import { EstimateDetailScreen } from '@modules/sales/screens/EstimateDetailScreen';
 import { EstimateFormScreen } from '@modules/sales/screens/EstimateFormScreen';
@@ -24,6 +25,7 @@ export function SalesStackNavigator() {
       <Stack.Screen name="InvoiceForm" component={InvoiceFormScreen} />
       <Stack.Screen name="InvoiceSend" component={InvoiceSendScreen} />
       <Stack.Screen name="InvoicePayment" component={InvoicePaymentScreen} />
+      <Stack.Screen name="InvoiceFilter" component={InvoiceFilterScreen} />
       <Stack.Screen name="EstimateList" component={EstimateListScreen} />
       <Stack.Screen name="EstimateDetail" component={EstimateDetailScreen} />
       <Stack.Screen name="EstimateForm" component={EstimateFormScreen} />

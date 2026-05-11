@@ -13,6 +13,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
 import { RootStackParamList, Company } from '@common/types';
 import { authController } from '../auth.controller';
 import { authService } from '../auth.service';
@@ -23,9 +24,14 @@ import { getApiErrorMessage } from '@common/utils/apiError';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CompanySelect'>;
 type RouteProps = RouteProp<RootStackParamList, 'CompanySelect'>;
 
-interface CompanyItem extends Company {
-  role?: string | { id: string; name: string } | null;
+interface CompanyItem {
+  id?: string;
+  name?: string;
+  companyId?: string;
+  companyName?: string;
+  role?: string | { id?: string; code?: string; name: string } | null;
   isActive?: boolean;
+  isCurrentCompany?: boolean;
   logoUrl?: string;
   isPrimaryAdmin?: boolean;
   baseCurrency?: string;
@@ -94,6 +100,7 @@ export function CompanySelectScreen() {
   const [selectingId, setSelectingId] = useState<string | null>(null);
 
   const currentCompany = useAuthStore((s) => s.company);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (mode === 'in-app') {
@@ -115,19 +122,19 @@ export function CompanySelectScreen() {
     if (!searchQuery.trim()) return safe;
     const q = searchQuery.toLowerCase().trim();
     return safe.filter((c) => {
-      const n = (c.name ?? (c as any).companyName ?? '').toLowerCase();
+      const n = (c.companyName ?? c.name ?? '').toLowerCase();
       return n.includes(q);
     });
   }, [companies, searchQuery]);
 
   const handleSelect = async (company: CompanyItem) => {
     if (selectingId) return;
-    const companyId = company.id ?? (company as any).companyId;
+    const companyId = company.companyId ?? company.id ?? '';
     setSelectingId(companyId);
 
     try {
       if (mode === 'post-login') {
-        const result = await authController.selectCompany(companyId, tempToken);
+        const result = await authController.selectCompany(companyId, tempToken ?? '');
         if (!result.success) {
           setSelectingId(null);
           return;
@@ -138,10 +145,12 @@ export function CompanySelectScreen() {
       } else {
         const tokens = await authService.switchCompany(companyId);
         saveTokens(tokens.accessToken, tokens.refreshToken);
+        // Clear all cached queries — different company = different data
+        queryClient.clear();
         const permissions = await authService.getMyPermissions();
         const updatedCompany: Company = {
           id: companyId,
-          name: company.name ?? (company as any).companyName ?? '',
+          name: company.companyName ?? company.name ?? '',
         };
         const user = useAuthStore.getState().user!;
         useAuthStore.getState().setAuth(user, updatedCompany, permissions);
@@ -158,12 +167,10 @@ export function CompanySelectScreen() {
   };
 
   const renderItem = ({ item }: { item: CompanyItem }) => {
-    const displayName = item.name ?? (item as any).companyName ?? '?';
-    const isActiveCompany =
-      item.id === currentCompany?.id ||
-      (item as any).companyId === currentCompany?.id ||
-      item.isActive;
-    const isSelecting = selectingId === (item.id ?? (item as any).companyId);
+    const displayName = item.companyName ?? item.name ?? '?';
+    const itemId = item.companyId ?? item.id ?? '';
+    const isActiveCompany = item.isCurrentCompany === true || itemId === currentCompany?.id;
+    const isSelecting = selectingId === itemId;
     const color = avatarColor(displayName);
     const initial = displayName.charAt(0).toUpperCase();
     const roleName = getRoleName(item.role);
@@ -183,7 +190,7 @@ export function CompanySelectScreen() {
             shadowOpacity: 0.25,
             shadowRadius: 12,
             elevation: 6,
-            opacity: selectingId && selectingId !== item.id ? 0.5 : 1,
+            opacity: selectingId && selectingId !== itemId ? 0.5 : 1,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -256,7 +263,7 @@ export function CompanySelectScreen() {
           shadowOpacity: 0.05,
           shadowRadius: 18,
           elevation: 3,
-          opacity: selectingId && selectingId !== item.id ? 0.5 : 1,
+          opacity: selectingId && selectingId !== itemId ? 0.5 : 1,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -435,7 +442,7 @@ export function CompanySelectScreen() {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.companyId ?? item.id ?? Math.random().toString()}
           renderItem={renderItem}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}

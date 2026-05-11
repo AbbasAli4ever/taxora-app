@@ -77,22 +77,22 @@ export function SplashScreen() {
         return;
       }
 
-      const success = await authController.bootSession();
+      const result = await authController.bootSession();
       await waitRemaining();
 
-      if (success) {
-        const store = useAuthStore.getState();
-        if (!store.user?.id) {
-          navigation.replace('Login');
-          return;
-        }
-        if (!store.company) {
-          navigation.navigate('CompanySelect', { tempToken: '', companies: [] });
-          return;
-        }
+      if (result === 'success') {
+        navigation.replace('App');
+      } else if (result === 'needs-company') {
+        navigation.navigate('CompanySelect', { mode: 'in-app' });
       } else {
+        // 'fail' — expired/invalid token
         const cachedUser = getUser<User>();
-        if (!cachedUser) navigation.replace('Login');
+        if (cachedUser) {
+          // offline with cached user — enter app optimistically
+          navigation.replace('App');
+        } else {
+          navigation.replace('Login');
+        }
       }
     })();
   }, []);

@@ -66,11 +66,11 @@ export const authService = {
     await apiService.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, dto);
   },
 
-  async validateResetToken(token: string): Promise<boolean> {
-    const res = await apiService.get<{ valid: boolean }>(
+  async validateResetToken(token: string): Promise<{ valid: boolean; email?: string }> {
+    const res = await apiService.get<{ valid: boolean; email?: string }>(
       `${API_ENDPOINTS.AUTH.VALIDATE_RESET}?token=${token}`,
     );
-    return res.data.valid;
+    return { valid: res.data.valid, email: res.data.email };
   },
 
   async resetPassword(dto: Omit<ResetPasswordDto, 'confirmPassword'>): Promise<void> {
@@ -81,19 +81,12 @@ export const authService = {
     await apiService.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, { currentPassword, newPassword });
   },
 
-  async verifyMFA(tempToken: string, code: string): Promise<LoginResponse> {
+  async verifyMFA(tempToken: string, code: string, isBackupCode?: boolean): Promise<LoginResponse> {
     const res = await apiService.post<LoginResponse>(API_ENDPOINTS.AUTH.VERIFY_2FA, {
       tempToken,
       token: code,
+      ...(isBackupCode ? { isBackupCode: true } : {}),
     });
-    return res.data;
-  },
-
-  async resend2FA(tempToken: string): Promise<{ sent: boolean; retryAfter: number }> {
-    const res = await apiService.post<{ sent: boolean; retryAfter: number }>(
-      API_ENDPOINTS.AUTH.RESEND_2FA,
-      { tempToken },
-    );
     return res.data;
   },
 };

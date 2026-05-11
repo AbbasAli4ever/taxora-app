@@ -54,13 +54,20 @@ export interface LoginResponseDirect {
 export interface LoginResponseMFA {
   requires2fa: true;
   tempToken: string;
-  method: 'totp' | 'email';
 }
 
 export interface LoginResponseCompanySelect {
   requiresCompanySelection: true;
   tempToken: string;
-  companies: Company[];
+  companies: {
+    companyId: string;
+    companyName: string;
+    userId: string;
+    role: { code: string; name: string } | null;
+    isPrimaryAdmin: boolean;
+    lastLoginAt: string | null;
+    isActive: boolean;
+  }[];
 }
 
 export type LoginResponse = LoginResponseDirect | LoginResponseMFA | LoginResponseCompanySelect;
@@ -95,7 +102,16 @@ export type RootStackParamList = {
   CompanySelect: {
     mode?: 'post-login' | 'in-app';
     tempToken?: string;
-    companies?: Company[];
+    companies?: {
+      companyId: string;
+      companyName: string;
+      userId?: string;
+      role?: { code: string; name: string } | null;
+      isPrimaryAdmin?: boolean;
+      lastLoginAt?: string | null;
+      isActive?: boolean;
+      isCurrentCompany?: boolean;
+    }[];
   };
   App: undefined;
 };
@@ -105,7 +121,7 @@ export type AuthStackParamList = {
   Login: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token: string };
-  MFAChallenge: { tempToken: string; method: 'totp' | 'email'; email: string; password: string };
+  MFAChallenge: { tempToken: string };
 };
 
 export type AppTabParamList = {
@@ -125,9 +141,10 @@ export type HomeStackParamList = {
 export type SalesStackParamList = {
   InvoiceList: undefined;
   InvoiceDetail: { id: string };
-  InvoiceForm: { id?: string };
+  InvoiceForm: { id?: string; prefillFromId?: string };
   InvoiceSend: { id: string };
   InvoicePayment: { id: string };
+  InvoiceFilter: undefined;
   EstimateList: undefined;
   EstimateDetail: { id: string };
   EstimateForm: { id?: string };
